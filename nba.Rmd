@@ -150,19 +150,19 @@ summary(final.model)
 anova(final.model, test = "Chi")
 ```
 
-Let $Y_{i}$  denote the number of wins for a single team in a single season where i = 1, ..., 210 We assume that $Y_{i}: i=1,...,210$ is a set of independent Poisson random variables. We will model the mean number of wins, $\mu_{i}$, by team $i$ per season (82 games) $P_{i}$. 
+Let Yi denote the number of wins for a single team in a single season where i = 1, ..., 210 We assume that Yi: i=1,...,210$ is a set of independent Poisson random variables. We will model the mean number of wins, mui, by team i per season (82 games) Pi. 
 
 <p align="center">
-  <img width="400" height="400" src="/graphics/equation1.png">
+  <img width="194" height="36" src="/graphics/equation1.png">
 </p>
 
 <p align="center">
-  <img width="400" height="400" src="/graphics/equation2.png">
+  <img width="271" height="56" src="/graphics/equation2.png">
 </p>
 
-$x_i = x_{i1},..., x_{i6}$ are the 6 covariates for observation $i$, where each covariate pertains to the following variables, respectively: "three-point attempts", "two-point attempts", "offensive rebounds", "defensive rebounds", "assists", "steals", and "turnovers".  
+xi = xi1,..., xi6 are the 6 covariates for observation i, where each covariate pertains to the following variables, respectively: "three-point attempts", "two-point attempts", "offensive rebounds", "defensive rebounds", "assists", "steals", and "turnovers".  
 
-$(conf)_i = {0 = Eastern Conference, 1 = Western Conference}$
+(conf)i = {0 = Eastern Conference, 1 = Western Conference}
 
 It should also be noted that although a team winning zero games in a season is in the domain of our model, there has never been a team in the NBA that has not won a game. This could happen, but it is extremely unlikely.
 

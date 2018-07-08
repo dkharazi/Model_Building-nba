@@ -150,7 +150,7 @@ summary(final.model)
 anova(final.model, test = "Chi")
 ```
 
-Let Yi denote the number of wins for a single team in a single season where i = 1, ..., 210 We assume that Yi: i=1,...,210$ is a set of independent Poisson random variables. We will model the mean number of wins, \mu_i, by team i per season (82 games) Pi. 
+Let Yi denote the number of wins for a single team in a single season where i = 1, ..., 210 We assume that Yi: i=1,...,210$ is a set of independent Poisson random variables. We will model the mean number of wins, mui, by team i per season (82 games) Pi. 
 
 <p align="center">
   <img width="194" height="36" src="/graphics/equation1.png">

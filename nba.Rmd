@@ -1,0 +1,230 @@
+---
+title: "NBA"
+author: "Darius Kharazi"
+date: "7/7/2018"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+## Import Statements
+
+```{r setup, include=FALSE}
+## Import libraries
+library(knitr)
+library(readr)
+library(corrplot)
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+
+## Import data
+nba <- read_csv("~/Downloads/nba/data/nba.csv")
+nba.df <- data.frame(nba)
+```
+
+## Exploratory Analysis
+
+```{r correxp}
+## Correlation plots
+corrplot(cor(nba.df[,c(9:31)]), method = "circle")
+```
+
+<p align="center">
+  <img width="400" height="400" src="/graphics/plot1.png">
+</p>
+
+We've created a correlation matrix to determine the relationships between our response variable, number of wins, and the other variables in the dataset. There are three predictors that are highly, positively correlated with the number of wins per season: two-point percentage, field goal percentage, and three-point percentage. The correlations for these variables are 0.67, 0.65, and 0.53, respectively, and indicate that the variables in question are a major source of the variability in a team's number of wins per season. Although these correlations may seem intuitive, they demonstrate that teams will tend to win more games if they take more efficient shots at a higher conversion rate.
+
+```{r lineexp}
+## Filter the best teams
+topteams <- c("Cleveland Cavaliers", "Golden State Warriors", "Miami Heat",
+              "Oklahoma City Thunder", "Philadelphia 76ers", "Toronto Raptors")
+
+## Format the data
+topteams.df <- nba.df %>%
+  select(YearEnd, Team, W) %>%
+  filter(Team %in% topteams)
+
+## Line graph
+ggplot(topteams.df, aes(x = YearEnd, y = W, color = Team)) +
+  geom_line(size = 1) +
+  geom_point() +
+  labs(x = "Season", y = "Wins", color = "Top Teams")
+```
+
+<p align="center">
+  <img width="400" height="400" src="/graphics/plot2.png">
+</p>
+
+According to the line graph, the most popular NBA teams have been somewhat volatile recently, and they have particularly not been very consistent with winning games in back to back seasons. Interestingly, the Cleveland Cavaliers experienced a massive drop in wins during their 2010-2011 season in comparison to their previous season. The Toronto Raptors also experienced a somewhat significant drop in wins the same season, but not nearly as bad as the Cleveland Cavaliers. This rise in losses was primarily caused by key players leaving both the Cleveland Cavaliers and the Toronto Raptors for the Miami Heat. Lebron James left the Cavaliers and Chris Bosh left the Raptors to join Dwayne Wade in Miami during the 2010 offseason. Lebron would return to Cleveland for the 2014-15 season resulting in a significant upswing in the number of wins that the Cavs had that season, along with a subsequent decrease in wins for the Heat.
+
+The Oklahoma City Thunder had a steep increase in wins in the 2009-10 season, due to the addition of key rookies, such as James Harden and Serge Ibaka, to complement Kevin Durant and Russell Westbrook. By drafting allstars, such as Steph Curry, Klay Thompson, and Draymond Green, the Golden State Warriors consistently increased the number of wins each season. Also, the Philadelphia 76ers were plagued by injuries to 1st round draft picks, resulting in the second worst record of all time since the season was expanded to 82 games.
+
+## Poisson Model Building using Stepwise Selection
+
+```{r step}
+## Stepwise model
+step.model <- glm(W ~ MP + FG + X3PA + X2P + X2PA + FT. + DRB + TRB + AST + STL + TOV + CONF, 
+                  family = poisson,
+                  data = nba.df)
+
+## Summary
+summary(step.model)
+```
+
+Before we begin building our model and performing search methods on the available variables, we need to think about which model will be best suited for the question we are asking. Initially, we wanted to measure the number of wins across all teams in a season. This remains to be the goal of the analysis, but we may want to slightly adjust the way we decide to measure wins. Most likely, we would like know the rate of wins per season, rather than the number of wins per season. Luckily for us, poisson models are good for measuring both "counts" and "rates", which will benefit us in measuring the rate of wins across all teams in a season. Our poisson model will require an offset to measure a team's wins per season as a rate, instead of a count, however. In our situation, the "Games Played" variable will be set as the offset.
+
+```{r stepanova}
+## Anova table
+anova(step.model, test = "Chi")
+```
+
+In our initial model building step, we want to utilize both the Stepwise Variable Selection and Principal Component Analysis to see if we can narrow down the amount of variables used in our model that predicts the number of wins in a season. Using stepwise variable selection, we reduced the preferred number of variables from 26 to 13, which are 'Minutes Played', 'Field Goals, 'Three Points Attempted', 'Two Points Made', 'Two Points Attempted', 'Free Throw Percentage', 'Defensive Rebounds', 'Rebounds', 'Assists', 'Steals', 'Turnovers', and 'Conference'. We will refer to this model as our 'Stepwise Model' for the rest of the analysis. According to the ANOVA table and the coefficient summaries, we should prefer a model with these 13 variables, due to their extremely small p-values. Many of these variables seem redundant or very closely related to each other, meaning we will want to continue to search for a better model with an even more reduced number of variable. Regardless, stepwise variable selection provided us with a preliminary model that established a useful framework for further model building.
+
+```{r steppca}
+## PCA
+summary(prcomp(nba.df[,c(10:31)], scale = TRUE))
+```
+
+Next, we wanted to see if Principal Component Analysis (PCA) would provide us with any different insights into variable reduction. Principal Component Analysis deals with only numeric variables, so the variables "Conference" and "Year" were not included in the PCA. After ensuring the PCA ran properly, the column means and variable means from the PCA were the same, we looked closely at each Principal Component. The first principal component output described 24% of the variability in the data, while the remaining components explain a significantly less percentage of the overall variability. After taking this into consideration, we decided to prefer the Stepwise Model, rather than the PCA output.
+
+## Poisson Model Building with Interactions
+
+```{r interplot}
+## Plotting an interaction for field goals by conference
+ggplot(nba.df, aes(x = CONF, y = FG, fill = CONF)) +
+  geom_boxplot() +
+  scale_fill_discrete(labels = c("East", "West")) +
+  scale_x_discrete(labels = c("East", "West")) +
+  labs(x = "Conference", y = "Field Goals", fill = "Conference")
+
+## Plotting an interaction for wins by conference
+ggplot(nba.df, aes(x = CONF, y = W, fill = CONF)) +
+  geom_boxplot() +
+  scale_fill_discrete(labels = c("East", "West")) +
+  scale_x_discrete(labels = c("East", "West")) +
+  labs(x = "Conference", y = "Wins", fill = "Conference")
+```
+```
+
+<p align="center">
+  <img width="400" height="400" src="/graphics/plot3.png">
+</p>
+
+We wanted to simplify and reduce the number of variables in our Stepwise Model even further. To do this, we tried to see if there were any interaction terms that could be significant. Rather than immediately adding interaction terms randomly to the model, we plotted variables that seemed to have a varying number of wins at certain levels of the factor variables. We can see that the top teams from the western conference win more games than the top teams from the eastern conference on average, which is possibly correlated with the number of field goals made. As a result, we should examine a poisson model that predicts the average rate of wins with an interaction term of the "Field Goal" and "Conference" variables, since the plot with "Field Goals" had the most potential of an interaction term with "Conference."
+
+```{r inter}
+## Interaction model
+int.model <- glm(W ~ offset(log(G)) + MP + FG + X3PA + X2P + X2PA + FT. + DRB + TRB + AST + STL + TOV + CONF + FG:CONF, family = poisson, data = nba.df)
+
+## Summary
+summary(int.model)
+```
+
+Although both the plots show a potential interaction term between the "Conference" and "Field Goal" variables, the interaction term seems to be an insignificant addition to the model. Therefore, we should prefer the stepwise model over the interaction model for now.
+
+```{r interanova}
+## Anova table
+anova(int.model, test = "Chi")
+```
+
+## Model Selection
+
+The stepwise model with 13 variables seems like a decent model to predict the average rate of wins for each team per season, but we still need to remove some of the variables that are overly similar. Intuitively, we should remove the "Minutes Played" variable, since this variable represents the minutes every team plays in each season, which should be the same across each team and does not account for a large amount of variability of the numbers of wins. We also removed the "Field Goals" variable because it adds both the three-point and two-point baskets made, but does not distinguish from the two-point baskets. We took out the variable and added both three-pointers and two-pointers into the model in order to help distinguish from the two-pointers. Knowing the game of basketball, the "Free Throw Percentage" variable does not help determine the number of wins. Free Throws are only worth 1 point, but they are arbitrarily determined by fouls. There is too much variability in the amount of Free Throws per game to keep the "Free Throw" variable in the model. Additionally, we removed the "Total Rebounds" variable and replaced it with the "Offensive Rebounds" variable, since all three variables, Defensive Rebounds, Offensive Rebounds, and Total Rebounds, accounts for the same variability in the model. Splitting the "Total Rebounds" variable by the "Offensive" and "Defensive" variables makes the model more interpretable, as well.
+
+## Final Model
+
+```{r final}
+## Final model
+final.model <- glm(W ~ offset(log(G)) + X3PA + X2PA + ORB + DRB + AST + STL + TOV + CONF,
+                   family = poisson,
+                   data = nba.df)
+
+## Summary
+summary(final.model)
+```
+
+```{r finalanova}
+## Anova table
+anova(final.model, test = "Chi")
+```
+
+Let $Y_{i}$  denote the number of wins for a single team in a single season where i = 1, ..., 210 We assume that $Y_{i}: i=1,...,210$ is a set of independent Poisson random variables. We will model the mean number of wins, $\mu_{i}$, by team $i$ per season (82 games) $P_{i}$. 
+
+<p align="center">
+  <img width="400" height="400" src="/graphics/equation1.png">
+</p>
+
+<p align="center">
+  <img width="400" height="400" src="/graphics/equation2.png">
+</p>
+
+$x_i = x_{i1},..., x_{i6}$ are the 6 covariates for observation $i$, where each covariate pertains to the following variables, respectively: "three-point attempts", "two-point attempts", "offensive rebounds", "defensive rebounds", "assists", "steals", and "turnovers".  
+
+$(conf)_i = {0 = Eastern Conference, 1 = Western Conference}$
+
+It should also be noted that although a team winning zero games in a season is in the domain of our model, there has never been a team in the NBA that has not won a game. This could happen, but it is extremely unlikely.
+
+```{r diagnostics}
+## Calculate the residuals
+res <- resid(final.model)
+fits <- fitted(final.model)
+
+## Plot the residuals
+par(mfrow = c(1, 2))
+plot(fits, res, xlab = "Fitted values", ylab = "Residuals", ylim = c(-3,3))
+abline(h = 0, lty = 2)
+
+plot(nba.df$X3PA, res, xlab = "Three-Pointers Attempted", ylab="Residuals", ylim = c(-3,3))
+abline(h = 0, lty = 2)
+```
+
+<p align="center">
+  <img width="400" height="400" src="/graphics/plot4.png">
+</p>
+
+Above are the plots for the fitted values versus residuals and 3 pointers versus residuals. As we can see the values are centered around zero and have a constant spread. All of the plots for the continuous variables are centered around zero with a constant spread. The two factor variables that we include have residuals centered around zero.
+
+<p align="center">
+  <img width="380" height="200" src="/graphics/plot5.png">
+</p>
+
+The above graph is the cross-validation of our model with the NBA results from this season. For a majority of the league our model seem to do a good job of predicting the actual win totals. The one outlier however are the Golden State Warriors. Our model predicts that on average Golden State should win more than 82 games. This is impossible since the season is 82 games. One weakness of our model is that it is allowed to output values that are above 82 wins.
+
+## Interpretations of the Coefficients
+
+- Intercept (not very meaningful)
+    - A team with zero field goal attempts (2 or 3 points), no rebounds (offensive or defensive), no assists, no steals, no turnovers, in the Eastern Conference, and from a season after the lockout, would have an average win rate of $e^{0.861966} = 2.3678$  wins per season. This is a practically impossible scenario and therefore not a meaningful or useful interpretation.
+
+- Three Point Attempts
+    - We estimate that the win rate will increase by a factor of $e^{-0.078272} = 0.9247$ units for each additional three-point field goal attempted.
+    - 95% Confidence Interval: [0.9142728, 0.9352722]
+
+- Two Point Attempts
+    - We estimate that the win rate will increase by a factor of $e^{-0.095197} = 0.9092$ units for each additional two-point field goal attempted.
+    - 95% Confidence Interval: [0.8990682, 0.9194225]
+    
+- Offensive Rebound Attempts
+    - We estimate that the win rate will increase by a factor of $e^{0.119155} = 1.1265$ units for each additional offensive rebound attempted.
+    - 95% Confidence Interval: [1.099428, 1.15433]
+    
+- Defensive Rebound Attempts
+    - We estimate that the win rate will increase by a factor of $e^{0.133814} = 1.1432$ units for each additional defensive rebound attempted.
+    - 95% Confidence Interval: [1.12396, 1.162729]
+    
+- Assists
+    - We estimate that the win rate will increase by a factor of $e^{0.068501} = 1.0709$ units for each additional assist.
+    - 95% Confidence Interval: [1.055171, 1.086867]
+    
+- Steals
+    - We estimate that the win rate will increase by a factor of $e^{0.152732} = 1.1650$ units for each additional steal.
+    - 95% Confidence Interval: [1.130522, 1.200556]
+    
+- Turnovers
+    - We estimate that the win rate will increase by a factor of $e^{-0.161877} = 0.8505$ units for each additional turnover.
+    - 95% Confidence Interval: [0.8320226, 0.8694814]
+    
+- Conference
+    - We estimate that the win rate will increase by a factor of $e^{0.031710} = 0.8505$ units for a team in the Western Conference compared to the Eastern Conference.
+    - 95% Confidence Interval: [0.9864405, 1.08012]

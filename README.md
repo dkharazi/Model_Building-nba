@@ -5,7 +5,7 @@ The data contains 29 statistical summaries about the top thirty teams for the 20
 
 ## Variable Descriptions
 
-`Year:` The NBA season.
+- `Year:` The NBA season.
 - `Rk:` The ranking of the team for the season.
 - `Team:` The NBA team.
 - `ABR:` The abbreviated NBA team.
